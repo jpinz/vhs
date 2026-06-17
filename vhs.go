@@ -38,6 +38,12 @@ type VHS struct {
 	// be updated from the evaluator goroutine while Record() reads it.
 	// The float64 value is stored as its IEEE 754 bit pattern in a uint64.
 	playbackSpeedBits uint64
+	frameInfos        []FrameInfo
+}
+
+// FrameInfo records speed at each frame for post-processing overlays.
+type FrameInfo struct {
+	Speed float64
 }
 
 // Options is the set of options for the setup.
@@ -55,6 +61,8 @@ type Options struct {
 	WaitTimeout   time.Duration
 	WaitPattern   *regexp.Regexp
 	CursorBlink   bool
+	SpeedCursor   bool
+	SpeedOverlay  string
 	Screenshot    ScreenshotOptions
 	Style         StyleOptions
 }
@@ -238,6 +246,11 @@ func (vhs *VHS) Cleanup() error {
 
 // Render starts rendering the individual frames into a video.
 func (vhs *VHS) Render() error {
+	// Apply speed overlays before loop offset changes frame numbers.
+	if err := vhs.ApplySpeedOverlays(); err != nil {
+		return err
+	}
+
 	// Apply Loop Offset by modifying frame sequence
 	if err := vhs.ApplyLoopOffset(); err != nil {
 		return err
@@ -260,6 +273,34 @@ func (vhs *VHS) Render() error {
 		}
 	}
 
+	return nil
+}
+
+// ApplySpeedOverlays post-processes frame PNGs to draw speed indicators.
+//   - SpeedCursor: draws ">> Nx" text on cursor frames where speed > 1.0,
+//     positioned at the cursor's pixel location (detected by non-transparent pixels).
+//   - SpeedOverlay: draws ">> Nx" text in the specified corner of text frames
+//     wherever speed != 1.0.
+func (vhs *VHS) ApplySpeedOverlays() error {
+	if !vhs.Options.SpeedCursor && vhs.Options.SpeedOverlay == "" {
+		return nil
+	}
+	for i, info := range vhs.frameInfos {
+		frameNum := i + vhs.Options.Video.StartingFrame
+		speedText := formatSpeed(info.Speed)
+		if vhs.Options.SpeedCursor && info.Speed > 1.0 {
+			path := filepath.Join(vhs.Options.Video.Input, fmt.Sprintf(cursorFrameFormat, frameNum))
+			if err := applyCursorSpeedOverlay(path, speedText); err != nil {
+				return err
+			}
+		}
+		if vhs.Options.SpeedOverlay != "" && info.Speed != 1.0 {
+			path := filepath.Join(vhs.Options.Video.Input, fmt.Sprintf(textFrameFormat, frameNum))
+			if err := applyCornerSpeedOverlay(path, speedText, vhs.Options.SpeedOverlay); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -389,6 +430,7 @@ func (vhs *VHS) Record(ctx context.Context) <-chan error {
 				for accumulator >= 1.0 {
 					accumulator -= 1.0
 					counter++
+					vhs.frameInfos = append(vhs.frameInfos, FrameInfo{Speed: speed})
 
 					if err := os.WriteFile(
 						filepath.Join(vhs.Options.Video.Input, fmt.Sprintf(cursorFrameFormat, counter)),

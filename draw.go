@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
@@ -8,6 +9,11 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"strconv"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/math/fixed"
 )
 
 type circle struct {
@@ -412,4 +418,126 @@ func parseHexColor(s string) (c color.RGBA, err error) {
 		err = fmt.Errorf("%s color of invalid length", s)
 	}
 	return
+}
+
+// formatSpeed formats a playback speed value as a display string, e.g. ">> 2x" or ">> 1.5x".
+func formatSpeed(speed float64) string {
+	s := strconv.FormatFloat(speed, 'f', -1, 64)
+	return ">> " + s + "x"
+}
+
+// drawSpeedText renders text onto img at (x, y) using the basic 7×13 pixel font.
+// y is the baseline position. The text is drawn in white with a dark semi-transparent
+// background for readability.
+func drawSpeedText(img *image.RGBA, x, y int, text string) {
+	// Draw dark background behind text
+	const charW, charH = 7, 13
+	bgW := len(text)*charW + 4
+	bgH := charH + 4
+	bgX := x - 2
+	bgY := y - charH - 2
+	for py := bgY; py < bgY+bgH; py++ {
+		for px := bgX; px < bgX+bgW; px++ {
+			if px >= 0 && py >= 0 && px < img.Bounds().Max.X && py < img.Bounds().Max.Y {
+				img.SetRGBA(px, py, color.RGBA{0x00, 0x00, 0x00, 0xAA})
+			}
+		}
+	}
+	// Draw text
+	d := &font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(color.RGBA{0xFF, 0xFF, 0xFF, 0xFF}),
+		Face: basicfont.Face7x13,
+		Dot:  fixed.Point26_6{X: fixed.Int26_6(x * 64), Y: fixed.Int26_6(y * 64)},
+	}
+	d.DrawString(text)
+}
+
+// applyCursorSpeedOverlay loads the cursor PNG at path, detects the cursor position
+// by finding non-transparent pixels, draws speedText at that position, and saves.
+func applyCursorSpeedOverlay(path, speedText string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading cursor frame: %w", err)
+	}
+	src, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("decoding cursor frame: %w", err)
+	}
+	rgba := image.NewRGBA(src.Bounds())
+	draw.Draw(rgba, rgba.Bounds(), src, image.Point{}, draw.Src)
+
+	// Find cursor position (topmost non-transparent pixel)
+	cx, cy := findCursorPixel(src)
+
+	// Draw speed text at cursor position (baseline at cy + font ascent)
+	drawSpeedText(rgba, cx, cy+basicfont.Face7x13.Ascent, speedText)
+
+	return savePNG(path, rgba)
+}
+
+// applyCornerSpeedOverlay loads the text PNG at path and draws speedText in the
+// specified corner (TopLeft, TopRight, BottomLeft, BottomRight), then saves.
+func applyCornerSpeedOverlay(path, speedText, corner string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading text frame: %w", err)
+	}
+	src, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("decoding text frame: %w", err)
+	}
+	rgba := image.NewRGBA(src.Bounds())
+	draw.Draw(rgba, rgba.Bounds(), src, image.Point{}, draw.Src)
+
+	const margin = 8
+	const charW = 7
+	textPixelW := len(speedText) * charW
+	bounds := rgba.Bounds()
+
+	var x, y int
+	switch corner {
+	case "TopLeft":
+		x = margin
+		y = margin + basicfont.Face7x13.Ascent
+	case "TopRight":
+		x = bounds.Max.X - textPixelW - margin
+		y = margin + basicfont.Face7x13.Ascent
+	case "BottomLeft":
+		x = margin
+		y = bounds.Max.Y - margin
+	case "BottomRight":
+		x = bounds.Max.X - textPixelW - margin
+		y = bounds.Max.Y - margin
+	default:
+		x = margin
+		y = margin + basicfont.Face7x13.Ascent
+	}
+
+	drawSpeedText(rgba, x, y, speedText)
+	return savePNG(path, rgba)
+}
+
+// findCursorPixel returns the (x, y) of the topmost-leftmost non-transparent pixel
+// in img, which represents the cursor position.
+func findCursorPixel(img image.Image) (int, int) {
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			if a > 0x8000 {
+				return x, y
+			}
+		}
+	}
+	return 0, 0
+}
+
+// savePNG encodes img as PNG and writes it to path.
+func savePNG(path string, img image.Image) error {
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return fmt.Errorf("encoding PNG: %w", err)
+	}
+	return os.WriteFile(path, buf.Bytes(), 0o600)
 }
