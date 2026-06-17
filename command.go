@@ -678,6 +678,7 @@ func ExecuteSetPlaybackSpeed(c parser.Command, v *VHS) error {
 	}
 
 	v.Options.Video.PlaybackSpeed = playbackSpeed
+	v.storePlaybackSpeed(playbackSpeed)
 	return nil
 }
 
