@@ -694,8 +694,10 @@ ScrollToBottom
 ScrollToBottom@500ms
 ```
 
-When hidden output has accumulated off-screen, use `Show` +
-`ScrollToBottom@<time> smooth` to visibly reveal it with a smooth scroll.
+`Show` does not scroll by itself; it just resumes capture from whatever
+viewport the terminal is currently showing. If you want to visibly reveal
+hidden output instead of resuming at the terminal's current position, start
+with `Hide+Scroll`, then use `Show` + `ScrollToBottom@<time> smooth`.
 
 ### Wait
 
@@ -773,7 +775,10 @@ Enter
 
 The `Show` command instructs VHS to begin capturing frames, again. It's useful
 after a `Hide` command to resume frame recording for the output. It also clears
-any viewport lock created by `Hide+Scroll` so capture resumes normally.
+any viewport lock created by `Hide+Scroll` so capture resumes normally. `Show`
+does not perform any scrolling on its own; after a plain `Hide`, capture
+resumes from the terminal's current viewport, which may already be at the
+bottom if hidden commands produced more output.
 
 ```elixir
 Hide
