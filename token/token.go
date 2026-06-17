@@ -42,23 +42,24 @@ const (
 	EOF     = "EOF"
 	ILLEGAL = "ILLEGAL"
 
-	ALT         = "ALT"
-	BACKSPACE   = "BACKSPACE"
-	CTRL        = "CTRL"
-	DELETE      = "DELETE"
-	END         = "END"
-	ENTER       = "ENTER"
-	ESCAPE      = "ESCAPE"
-	HOME        = "HOME"
-	INSERT      = "INSERT"
-	PAGE_DOWN   = "PAGE_DOWN"
-	PAGE_UP     = "PAGE_UP"
-	SCROLL_DOWN = "SCROLL_DOWN"
-	SCROLL_UP   = "SCROLL_UP"
-	SLEEP       = "SLEEP"
-	SPACE       = "SPACE"
-	TAB         = "TAB"
-	SHIFT       = "SHIFT"
+	ALT              = "ALT"
+	BACKSPACE        = "BACKSPACE"
+	CTRL             = "CTRL"
+	DELETE           = "DELETE"
+	END              = "END"
+	ENTER            = "ENTER"
+	ESCAPE           = "ESCAPE"
+	HOME             = "HOME"
+	INSERT           = "INSERT"
+	PAGE_DOWN        = "PAGE_DOWN"
+	PAGE_UP          = "PAGE_UP"
+	SCROLL_DOWN      = "SCROLL_DOWN"
+	SCROLL_TO_BOTTOM = "SCROLL_TO_BOTTOM"
+	SCROLL_UP        = "SCROLL_UP"
+	SLEEP            = "SLEEP"
+	SPACE            = "SPACE"
+	TAB              = "TAB"
+	SHIFT            = "SHIFT"
 
 	COMMENT = "COMMENT"
 	NUMBER  = "NUMBER"
@@ -109,66 +110,67 @@ const (
 
 // Keywords maps keyword strings to tokens.
 var Keywords = map[string]Type{
-	"em":            EM,
-	"px":            PX,
-	"ms":            MILLISECONDS,
-	"s":             SECONDS,
-	"m":             MINUTES,
-	"Set":           SET,
-	"Sleep":         SLEEP,
-	"Type":          TYPE,
-	"Enter":         ENTER,
-	"Space":         SPACE,
-	"Backspace":     BACKSPACE,
-	"Delete":        DELETE,
-	"Insert":        INSERT,
-	"Ctrl":          CTRL,
-	"Alt":           ALT,
-	"Shift":         SHIFT,
-	"Down":          DOWN,
-	"Left":          LEFT,
-	"Right":         RIGHT,
-	"Up":            UP,
-	"PageUp":        PAGE_UP,
-	"PageDown":      PAGE_DOWN,
-	"ScrollUp":      SCROLL_UP,
-	"ScrollDown":    SCROLL_DOWN,
-	"Tab":           TAB,
-	"Escape":        ESCAPE,
-	"End":           END,
-	"Hide":          HIDE,
-	"Require":       REQUIRE,
-	"Show":          SHOW,
-	"Output":        OUTPUT,
-	"Shell":         SHELL,
-	"FontFamily":    FONT_FAMILY,
-	"MarginFill":    MARGIN_FILL,
-	"Margin":        MARGIN,
-	"WindowBar":     WINDOW_BAR,
-	"WindowBarSize": WINDOW_BAR_SIZE,
-	"BorderRadius":  BORDER_RADIUS,
-	"FontSize":      FONT_SIZE,
-	"Framerate":     FRAMERATE,
-	"Height":        HEIGHT,
-	"LetterSpacing": LETTER_SPACING,
-	"LineHeight":    LINE_HEIGHT,
-	"PlaybackSpeed": PLAYBACK_SPEED,
-	"TypingSpeed":   TYPING_SPEED,
-	"Padding":       PADDING,
-	"Theme":         THEME,
-	"Width":         WIDTH,
-	"LoopOffset":    LOOP_OFFSET,
-	"WaitTimeout":   WAIT_TIMEOUT,
-	"WaitPattern":   WAIT_PATTERN,
-	"Wait":          WAIT,
-	"Source":        SOURCE,
-	"CursorBlink":   CURSOR_BLINK,
-	"true":          BOOLEAN,
-	"false":         BOOLEAN,
-	"Screenshot":    SCREENSHOT,
-	"Copy":          COPY,
-	"Paste":         PASTE,
-	"Env":           ENV,
+	"em":             EM,
+	"px":             PX,
+	"ms":             MILLISECONDS,
+	"s":              SECONDS,
+	"m":              MINUTES,
+	"Set":            SET,
+	"Sleep":          SLEEP,
+	"Type":           TYPE,
+	"Enter":          ENTER,
+	"Space":          SPACE,
+	"Backspace":      BACKSPACE,
+	"Delete":         DELETE,
+	"Insert":         INSERT,
+	"Ctrl":           CTRL,
+	"Alt":            ALT,
+	"Shift":          SHIFT,
+	"Down":           DOWN,
+	"Left":           LEFT,
+	"Right":          RIGHT,
+	"Up":             UP,
+	"PageUp":         PAGE_UP,
+	"PageDown":       PAGE_DOWN,
+	"ScrollUp":       SCROLL_UP,
+	"ScrollDown":     SCROLL_DOWN,
+	"ScrollToBottom": SCROLL_TO_BOTTOM,
+	"Tab":            TAB,
+	"Escape":         ESCAPE,
+	"End":            END,
+	"Hide":           HIDE,
+	"Require":        REQUIRE,
+	"Show":           SHOW,
+	"Output":         OUTPUT,
+	"Shell":          SHELL,
+	"FontFamily":     FONT_FAMILY,
+	"MarginFill":     MARGIN_FILL,
+	"Margin":         MARGIN,
+	"WindowBar":      WINDOW_BAR,
+	"WindowBarSize":  WINDOW_BAR_SIZE,
+	"BorderRadius":   BORDER_RADIUS,
+	"FontSize":       FONT_SIZE,
+	"Framerate":      FRAMERATE,
+	"Height":         HEIGHT,
+	"LetterSpacing":  LETTER_SPACING,
+	"LineHeight":     LINE_HEIGHT,
+	"PlaybackSpeed":  PLAYBACK_SPEED,
+	"TypingSpeed":    TYPING_SPEED,
+	"Padding":        PADDING,
+	"Theme":          THEME,
+	"Width":          WIDTH,
+	"LoopOffset":     LOOP_OFFSET,
+	"WaitTimeout":    WAIT_TIMEOUT,
+	"WaitPattern":    WAIT_PATTERN,
+	"Wait":           WAIT,
+	"Source":         SOURCE,
+	"CursorBlink":    CURSOR_BLINK,
+	"true":           BOOLEAN,
+	"false":          BOOLEAN,
+	"Screenshot":     SCREENSHOT,
+	"Copy":           COPY,
+	"Paste":          PASTE,
+	"Env":            ENV,
 }
 
 // IsSetting returns whether a token is a setting.
@@ -188,7 +190,7 @@ func IsSetting(t Type) bool {
 func IsCommand(t Type) bool {
 	switch t {
 	case TYPE, SLEEP,
-		UP, DOWN, RIGHT, LEFT, PAGE_UP, PAGE_DOWN, SCROLL_UP, SCROLL_DOWN,
+		UP, DOWN, RIGHT, LEFT, PAGE_UP, PAGE_DOWN, SCROLL_UP, SCROLL_DOWN, SCROLL_TO_BOTTOM,
 		ENTER, BACKSPACE, DELETE, TAB,
 		ESCAPE, HOME, INSERT, END, CTRL, SOURCE, SCREENSHOT, COPY, PASTE, WAIT:
 		return true

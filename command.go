@@ -39,37 +39,38 @@ type CommandFunc func(c parser.Command, v *VHS) error
 
 // CommandFuncs maps command types to their executable functions.
 var CommandFuncs = map[parser.CommandType]CommandFunc{
-	token.BACKSPACE:   ExecuteKey(input.Backspace),
-	token.DELETE:      ExecuteKey(input.Delete),
-	token.INSERT:      ExecuteKey(input.Insert),
-	token.DOWN:        ExecuteKey(input.ArrowDown),
-	token.ENTER:       ExecuteKey(input.Enter),
-	token.LEFT:        ExecuteKey(input.ArrowLeft),
-	token.RIGHT:       ExecuteKey(input.ArrowRight),
-	token.SPACE:       ExecuteKey(input.Space),
-	token.UP:          ExecuteKey(input.ArrowUp),
-	token.TAB:         ExecuteKey(input.Tab),
-	token.ESCAPE:      ExecuteKey(input.Escape),
-	token.PAGE_UP:     ExecuteKey(input.PageUp),
-	token.PAGE_DOWN:   ExecuteKey(input.PageDown),
-	token.SCROLL_UP:   ExecuteScroll(-1),
-	token.SCROLL_DOWN: ExecuteScroll(1),
-	token.HIDE:        ExecuteHide,
-	token.REQUIRE:     ExecuteRequire,
-	token.SHOW:        ExecuteShow,
-	token.SET:         ExecuteSet,
-	token.OUTPUT:      ExecuteOutput,
-	token.SLEEP:       ExecuteSleep,
-	token.TYPE:        ExecuteType,
-	token.CTRL:        ExecuteCtrl,
-	token.ALT:         ExecuteAlt,
-	token.SHIFT:       ExecuteShift,
-	token.ILLEGAL:     ExecuteNoop,
-	token.SCREENSHOT:  ExecuteScreenshot,
-	token.COPY:        ExecuteCopy,
-	token.PASTE:       ExecutePaste,
-	token.ENV:         ExecuteEnv,
-	token.WAIT:        ExecuteWait,
+	token.BACKSPACE:        ExecuteKey(input.Backspace),
+	token.DELETE:           ExecuteKey(input.Delete),
+	token.INSERT:           ExecuteKey(input.Insert),
+	token.DOWN:             ExecuteKey(input.ArrowDown),
+	token.ENTER:            ExecuteKey(input.Enter),
+	token.LEFT:             ExecuteKey(input.ArrowLeft),
+	token.RIGHT:            ExecuteKey(input.ArrowRight),
+	token.SPACE:            ExecuteKey(input.Space),
+	token.UP:               ExecuteKey(input.ArrowUp),
+	token.TAB:              ExecuteKey(input.Tab),
+	token.ESCAPE:           ExecuteKey(input.Escape),
+	token.PAGE_UP:          ExecuteKey(input.PageUp),
+	token.PAGE_DOWN:        ExecuteKey(input.PageDown),
+	token.SCROLL_UP:        ExecuteScroll(-1),
+	token.SCROLL_DOWN:      ExecuteScroll(1),
+	token.SCROLL_TO_BOTTOM: ExecuteScrollToBottom,
+	token.HIDE:             ExecuteHide,
+	token.REQUIRE:          ExecuteRequire,
+	token.SHOW:             ExecuteShow,
+	token.SET:              ExecuteSet,
+	token.OUTPUT:           ExecuteOutput,
+	token.SLEEP:            ExecuteSleep,
+	token.TYPE:             ExecuteType,
+	token.CTRL:             ExecuteCtrl,
+	token.ALT:              ExecuteAlt,
+	token.SHIFT:            ExecuteShift,
+	token.ILLEGAL:          ExecuteNoop,
+	token.SCREENSHOT:       ExecuteScreenshot,
+	token.COPY:             ExecuteCopy,
+	token.PASTE:            ExecutePaste,
+	token.ENV:              ExecuteEnv,
+	token.WAIT:             ExecuteWait,
 }
 
 // ExecuteNoop is a no-op command that does nothing.
@@ -141,6 +142,84 @@ func ExecuteScroll(direction int) CommandFunc {
 
 		return nil
 	}
+}
+
+// ExecuteScrollToBottom scrolls the terminal viewport to the bottom.
+// Options holds an optional @<time> duration; Args holds "smooth" or "snap".
+// With no duration or "snap", the scroll is instant.
+// With a duration and "smooth" (or no args), the viewport is animated.
+func ExecuteScrollToBottom(c parser.Command, v *VHS) error {
+	dur := time.Duration(0)
+	if c.Options != "" {
+		var err error
+		dur, err = time.ParseDuration(c.Options)
+		if err != nil {
+			return fmt.Errorf("failed to parse duration: %w", err)
+		}
+	}
+
+	scrollType := c.Args
+	if scrollType == "" {
+		if dur > 0 {
+			scrollType = "smooth"
+		} else {
+			scrollType = "snap"
+		}
+	}
+
+	if scrollType == "snap" || dur == 0 {
+		_, err := v.Page.Eval("() => term.scrollToBottom()")
+		if err != nil {
+			return fmt.Errorf("failed to scroll to bottom: %w", err)
+		}
+		return nil
+	}
+
+	res, err := v.Page.Eval("() => ({ viewportY: term.buffer.active.viewportY, length: term.buffer.active.length, rows: term.rows })")
+	if err != nil {
+		return fmt.Errorf("failed to get scroll info: %w", err)
+	}
+
+	viewportY := res.Value.Get("viewportY").Int()
+	length := res.Value.Get("length").Int()
+	rows := res.Value.Get("rows").Int()
+
+	bottomY := length - rows
+	if bottomY < 0 {
+		bottomY = 0
+	}
+	linesToScroll := bottomY - viewportY
+	if linesToScroll <= 0 {
+		return nil
+	}
+
+	interval := time.Second / time.Duration(v.Options.Video.Framerate)
+	frames := int(dur / interval)
+	if frames <= 0 {
+		frames = 1
+	}
+
+	scrolled := 0
+	for i := 0; i < frames; i++ {
+		start := time.Now()
+		targetScrolled := (linesToScroll * (i + 1)) / frames
+		delta := targetScrolled - scrolled
+		if delta > 0 {
+			if _, err := v.Page.Eval(fmt.Sprintf("() => term.scrollLines(%d)", delta)); err != nil {
+				return fmt.Errorf("failed to scroll: %w", err)
+			}
+			scrolled += delta
+		}
+		sleep := interval - time.Since(start)
+		if sleep > 0 {
+			time.Sleep(sleep)
+		}
+	}
+
+	if _, err := v.Page.Eval("() => term.scrollToBottom()"); err != nil {
+		return fmt.Errorf("failed to finalize scroll: %w", err)
+	}
+	return nil
 }
 
 // WaitTick is the amount of time to wait between checking for a match.
@@ -343,7 +422,23 @@ func ExecuteShift(c parser.Command, v *VHS) error {
 }
 
 // ExecuteHide is a CommandFunc that starts or stops the recording of the vhs.
-func ExecuteHide(_ parser.Command, v *VHS) error {
+func ExecuteHide(c parser.Command, v *VHS) error {
+	if c.Args == "Scroll" {
+		_, err := v.Page.Eval(`() => {
+			const active = term.buffer.active;
+			window._vhsScrollOffset = active.baseY - active.viewportY;
+			window._vhsScrollLockInterval = setInterval(function() {
+				const a = term.buffer.active;
+				const targetY = a.baseY - window._vhsScrollOffset;
+				if (targetY >= 0 && a.viewportY !== targetY) {
+					term.scrollToLine(targetY);
+				}
+			}, 16);
+		}`)
+		if err != nil {
+			return fmt.Errorf("failed to lock scroll: %w", err)
+		}
+	}
 	v.PauseRecording()
 	return nil
 }
@@ -357,6 +452,12 @@ func ExecuteRequire(c parser.Command, _ *VHS) error {
 
 // ExecuteShow is a CommandFunc that resumes the recording of the vhs.
 func ExecuteShow(_ parser.Command, v *VHS) error {
+	_, _ = v.Page.Eval(`() => {
+		if (window._vhsScrollLockInterval) {
+			clearInterval(window._vhsScrollLockInterval);
+			window._vhsScrollLockInterval = null;
+		}
+	}`)
 	v.ResumeRecording()
 	return nil
 }
