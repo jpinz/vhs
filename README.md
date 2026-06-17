@@ -514,6 +514,25 @@ Set LoopOffset 5 # Start the GIF at the 5th frame
 Set LoopOffset 50% # Start the GIF halfway through
 ```
 
+#### Set SpeedOverlay
+
+Set a corner overlay that shows the playback speed multiplier whenever the
+speed differs from `1.0`. Valid positions are `TopLeft`, `TopRight`,
+`BottomLeft`, and `BottomRight`.
+
+```elixir
+Set SpeedOverlay TopRight
+```
+
+#### Set SpeedCursor
+
+Set whether the cursor should display the playback speed indicator when the
+speed is faster than `1.0`. Disabled by default.
+
+```elixir
+Set SpeedCursor true
+```
+
 #### Set Cursor Blink
 
 Set whether the cursor should blink. Enabled by default.

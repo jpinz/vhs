@@ -279,7 +279,7 @@ func (vhs *VHS) Render() error {
 // ApplySpeedOverlays post-processes frame PNGs to draw speed indicators.
 //   - SpeedCursor: draws ">> Nx" text on cursor frames where speed > 1.0,
 //     positioned at the cursor's pixel location (detected by non-transparent pixels).
-//   - SpeedOverlay: draws ">> Nx" text in the specified corner of text frames
+//   - SpeedOverlay: draws "Nx" text in the specified corner of text frames
 //     wherever speed != 1.0.
 func (vhs *VHS) ApplySpeedOverlays() error {
 	if !vhs.Options.SpeedCursor && vhs.Options.SpeedOverlay == "" {
@@ -287,16 +287,17 @@ func (vhs *VHS) ApplySpeedOverlays() error {
 	}
 	for i, info := range vhs.frameInfos {
 		frameNum := i + vhs.Options.Video.StartingFrame
-		speedText := formatSpeed(info.Speed)
+		cursorSpeedText := formatSpeed(info.Speed)
+		overlaySpeedText := formatSpeedOverlay(info.Speed)
 		if vhs.Options.SpeedCursor && info.Speed > 1.0 {
 			path := filepath.Join(vhs.Options.Video.Input, fmt.Sprintf(cursorFrameFormat, frameNum))
-			if err := applyCursorSpeedOverlay(path, speedText); err != nil {
+			if err := applyCursorSpeedOverlay(path, cursorSpeedText); err != nil {
 				return err
 			}
 		}
 		if vhs.Options.SpeedOverlay != "" && info.Speed != 1.0 {
 			path := filepath.Join(vhs.Options.Video.Input, fmt.Sprintf(textFrameFormat, frameNum))
-			if err := applyCornerSpeedOverlay(path, speedText, vhs.Options.SpeedOverlay); err != nil {
+			if err := applyCornerSpeedOverlay(path, overlaySpeedText, vhs.Options.SpeedOverlay); err != nil {
 				return err
 			}
 		}

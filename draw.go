@@ -420,30 +420,55 @@ func parseHexColor(s string) (c color.RGBA, err error) {
 	return
 }
 
-// formatSpeed formats a playback speed value as a display string, e.g. ">> 2x" or ">> 1.5x".
+// formatSpeed formats a playback speed value as a cursor display string, e.g. ">> 2x" or ">> 1.5x".
 func formatSpeed(speed float64) string {
 	s := strconv.FormatFloat(speed, 'f', -1, 64)
 	return ">> " + s + "x"
 }
 
+// formatSpeedOverlay formats a playback speed value for corner overlays, e.g. "2x" or "1.5x".
+func formatSpeedOverlay(speed float64) string {
+	return strconv.FormatFloat(speed, 'f', -1, 64) + "x"
+}
+
+const (
+	speedBadgePaddingX = 4
+	speedBadgePaddingY = 2
+)
+
+func speedTextWidth(text string) int {
+	return font.MeasureString(basicfont.Face7x13, text).Ceil()
+}
+
+func speedTextBadgeRect(x, y int, text string) image.Rectangle {
+	return image.Rect(
+		x-speedBadgePaddingX,
+		y-basicfont.Face7x13.Ascent-speedBadgePaddingY,
+		x+speedTextWidth(text)+speedBadgePaddingX,
+		y+basicfont.Face7x13.Descent+speedBadgePaddingY,
+	)
+}
+
 // drawSpeedText renders text onto img at (x, y) using the basic 7×13 pixel font.
-// y is the baseline position. The text is drawn in white with a dark semi-transparent
-// background for readability.
+// y is the baseline position. The text is drawn in white inside a compact rounded
+// badge for readability.
 func drawSpeedText(img *image.RGBA, x, y int, text string) {
-	// Draw dark background behind text
-	const charW, charH = 7, 13
-	bgW := len(text)*charW + 4
-	bgH := charH + 4
-	bgX := x - 2
-	bgY := y - charH - 2
-	for py := bgY; py < bgY+bgH; py++ {
-		for px := bgX; px < bgX+bgW; px++ {
-			if px >= 0 && py >= 0 && px < img.Bounds().Max.X && py < img.Bounds().Max.Y {
-				img.SetRGBA(px, py, color.RGBA{0x00, 0x00, 0x00, 0xAA})
-			}
-		}
-	}
-	// Draw text
+	badge := speedTextBadgeRect(x, y, text)
+	radius := badge.Dy() / 2
+
+	draw.DrawMask(
+		img, badge, image.NewUniform(color.RGBA{0xFF, 0xFF, 0xFF, 0x18}), image.Point{},
+		&roundedrect{pa: badge.Min, pb: badge.Max, radius: radius},
+		image.Point{}, draw.Over,
+	)
+
+	inner := badge.Inset(1)
+	draw.DrawMask(
+		img, inner, image.NewUniform(color.RGBA{0x12, 0x16, 0x1D, 0x88}), image.Point{},
+		&roundedrect{pa: inner.Min, pb: inner.Max, radius: radius - 1},
+		image.Point{}, draw.Over,
+	)
+
 	d := &font.Drawer{
 		Dst:  img,
 		Src:  image.NewUniform(color.RGBA{0xFF, 0xFF, 0xFF, 0xFF}),
@@ -491,27 +516,26 @@ func applyCornerSpeedOverlay(path, speedText, corner string) error {
 	draw.Draw(rgba, rgba.Bounds(), src, image.Point{}, draw.Src)
 
 	const margin = 8
-	const charW = 7
-	textPixelW := len(speedText) * charW
+	textPixelW := speedTextWidth(speedText)
 	bounds := rgba.Bounds()
 
 	var x, y int
 	switch corner {
 	case "TopLeft":
-		x = margin
-		y = margin + basicfont.Face7x13.Ascent
+		x = margin + speedBadgePaddingX
+		y = margin + basicfont.Face7x13.Ascent + speedBadgePaddingY
 	case "TopRight":
-		x = bounds.Max.X - textPixelW - margin
-		y = margin + basicfont.Face7x13.Ascent
+		x = bounds.Max.X - margin - textPixelW - speedBadgePaddingX
+		y = margin + basicfont.Face7x13.Ascent + speedBadgePaddingY
 	case "BottomLeft":
-		x = margin
-		y = bounds.Max.Y - margin
+		x = margin + speedBadgePaddingX
+		y = bounds.Max.Y - margin - basicfont.Face7x13.Descent - speedBadgePaddingY
 	case "BottomRight":
-		x = bounds.Max.X - textPixelW - margin
-		y = bounds.Max.Y - margin
+		x = bounds.Max.X - margin - textPixelW - speedBadgePaddingX
+		y = bounds.Max.Y - margin - basicfont.Face7x13.Descent - speedBadgePaddingY
 	default:
-		x = margin
-		y = margin + basicfont.Face7x13.Ascent
+		x = margin + speedBadgePaddingX
+		y = margin + basicfont.Face7x13.Ascent + speedBadgePaddingY
 	}
 
 	drawSpeedText(rgba, x, y, speedText)
