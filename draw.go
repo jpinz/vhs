@@ -420,10 +420,15 @@ func parseHexColor(s string) (c color.RGBA, err error) {
 	return
 }
 
-// formatSpeed formats a playback speed value as a display string, e.g. ">> 2x" or ">> 1.5x".
+// formatSpeed formats a playback speed value as a cursor display string, e.g. ">> 2x" or ">> 1.5x".
 func formatSpeed(speed float64) string {
 	s := strconv.FormatFloat(speed, 'f', -1, 64)
 	return ">> " + s + "x"
+}
+
+// formatSpeedOverlay formats a playback speed value for corner overlays, e.g. "2x" or "1.5x".
+func formatSpeedOverlay(speed float64) string {
+	return strconv.FormatFloat(speed, 'f', -1, 64) + "x"
 }
 
 const (
