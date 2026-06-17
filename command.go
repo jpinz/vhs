@@ -459,6 +459,14 @@ func ExecuteShow(_ parser.Command, v *VHS) error {
 		if (window._vhsScrollLockInterval) {
 			clearInterval(window._vhsScrollLockInterval);
 			window._vhsScrollLockInterval = null;
+			// Snap the viewport to the locked position one final time so that
+			// a subsequent ScrollToBottom always animates from the correct
+			// starting line instead of from wherever the terminal auto-scrolled.
+			if (window._vhsLockedViewportY !== undefined) {
+				const a = term.buffer.active;
+				const maxY = Math.max(0, a.length - term.rows);
+				term.scrollToLine(Math.min(window._vhsLockedViewportY, maxY));
+			}
 		}
 	}`)
 	v.ResumeRecording()
