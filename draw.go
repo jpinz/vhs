@@ -12,7 +12,7 @@ import (
 	"strconv"
 
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/inconsolata"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -432,47 +432,54 @@ func formatSpeedOverlay(speed float64) string {
 }
 
 const (
-	speedBadgePaddingX = 4
-	speedBadgePaddingY = 2
+	speedBadgePaddingX = 8
+	speedBadgePaddingY = 4
+	speedBadgeBorder   = 2
 )
 
 func speedTextWidth(text string) int {
-	return font.MeasureString(basicfont.Face7x13, text).Ceil()
+	return font.MeasureString(inconsolata.Bold8x16, text).Ceil()
 }
 
 func speedTextBadgeRect(x, y int, text string) image.Rectangle {
 	return image.Rect(
 		x-speedBadgePaddingX,
-		y-basicfont.Face7x13.Ascent-speedBadgePaddingY,
+		y-inconsolata.Bold8x16.Ascent-speedBadgePaddingY,
 		x+speedTextWidth(text)+speedBadgePaddingX,
-		y+basicfont.Face7x13.Descent+speedBadgePaddingY,
+		y+inconsolata.Bold8x16.Descent+speedBadgePaddingY,
 	)
 }
 
-// drawSpeedText renders text onto img at (x, y) using the basic 7×13 pixel font.
-// y is the baseline position. The text is drawn in white inside a compact rounded
-// badge for readability.
+// drawSpeedText renders text onto img at (x, y) using the Inconsolata Bold 8×16 font.
+// y is the baseline position. The text is drawn in white inside a solid rounded
+// badge with a white border for legibility against any background.
 func drawSpeedText(img *image.RGBA, x, y int, text string) {
 	badge := speedTextBadgeRect(x, y, text)
 	radius := badge.Dy() / 2
 
+	// Outer border: solid white rounded rect.
 	draw.DrawMask(
-		img, badge, image.NewUniform(color.RGBA{0xFF, 0xFF, 0xFF, 0x18}), image.Point{},
+		img, badge, image.NewUniform(color.RGBA{0xFF, 0xFF, 0xFF, 0xFF}), image.Point{},
 		&roundedrect{pa: badge.Min, pb: badge.Max, radius: radius},
 		image.Point{}, draw.Over,
 	)
 
-	inner := badge.Inset(1)
+	// Inner background: solid dark rounded rect inset by border width.
+	inner := badge.Inset(speedBadgeBorder)
+	innerRadius := radius - speedBadgeBorder
+	if innerRadius < 0 {
+		innerRadius = 0
+	}
 	draw.DrawMask(
-		img, inner, image.NewUniform(color.RGBA{0x12, 0x16, 0x1D, 0x88}), image.Point{},
-		&roundedrect{pa: inner.Min, pb: inner.Max, radius: radius - 1},
+		img, inner, image.NewUniform(color.RGBA{0x12, 0x16, 0x1D, 0xFF}), image.Point{},
+		&roundedrect{pa: inner.Min, pb: inner.Max, radius: innerRadius},
 		image.Point{}, draw.Over,
 	)
 
 	d := &font.Drawer{
 		Dst:  img,
 		Src:  image.NewUniform(color.RGBA{0xFF, 0xFF, 0xFF, 0xFF}),
-		Face: basicfont.Face7x13,
+		Face: inconsolata.Bold8x16,
 		Dot:  fixed.Point26_6{X: fixed.Int26_6(x * 64), Y: fixed.Int26_6(y * 64)},
 	}
 	d.DrawString(text)
@@ -496,7 +503,7 @@ func applyCursorSpeedOverlay(path, speedText string) error {
 	cx, cy := findCursorPixel(src)
 
 	// Draw speed text at cursor position (baseline at cy + font ascent)
-	drawSpeedText(rgba, cx, cy+basicfont.Face7x13.Ascent, speedText)
+	drawSpeedText(rgba, cx, cy+inconsolata.Bold8x16.Ascent, speedText)
 
 	return savePNG(path, rgba)
 }
@@ -515,7 +522,7 @@ func applyCornerSpeedOverlay(path, speedText, corner string) error {
 	rgba := image.NewRGBA(src.Bounds())
 	draw.Draw(rgba, rgba.Bounds(), src, image.Point{}, draw.Src)
 
-	const margin = 8
+	const margin = 12
 	textPixelW := speedTextWidth(speedText)
 	bounds := rgba.Bounds()
 
@@ -523,19 +530,19 @@ func applyCornerSpeedOverlay(path, speedText, corner string) error {
 	switch corner {
 	case "TopLeft":
 		x = margin + speedBadgePaddingX
-		y = margin + basicfont.Face7x13.Ascent + speedBadgePaddingY
+		y = margin + inconsolata.Bold8x16.Ascent + speedBadgePaddingY
 	case "TopRight":
 		x = bounds.Max.X - margin - textPixelW - speedBadgePaddingX
-		y = margin + basicfont.Face7x13.Ascent + speedBadgePaddingY
+		y = margin + inconsolata.Bold8x16.Ascent + speedBadgePaddingY
 	case "BottomLeft":
 		x = margin + speedBadgePaddingX
-		y = bounds.Max.Y - margin - basicfont.Face7x13.Descent - speedBadgePaddingY
+		y = bounds.Max.Y - margin - inconsolata.Bold8x16.Descent - speedBadgePaddingY
 	case "BottomRight":
 		x = bounds.Max.X - margin - textPixelW - speedBadgePaddingX
-		y = bounds.Max.Y - margin - basicfont.Face7x13.Descent - speedBadgePaddingY
+		y = bounds.Max.Y - margin - inconsolata.Bold8x16.Descent - speedBadgePaddingY
 	default:
 		x = margin + speedBadgePaddingX
-		y = margin + basicfont.Face7x13.Ascent + speedBadgePaddingY
+		y = margin + inconsolata.Bold8x16.Ascent + speedBadgePaddingY
 	}
 
 	drawSpeedText(rgba, x, y, speedText)
