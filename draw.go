@@ -120,8 +120,8 @@ func (r *roundedrect) At(x, y int) color.Color {
 		(y < r.pa.Y+r.radius) {
 		c := circle{
 			image.Point{
-				r.radius,
-				r.radius,
+				r.pa.X + r.radius,
+				r.pa.Y + r.radius,
 			},
 			// Add one to corner radius so that
 			// fully-opaque pixels match the rectangle.
@@ -140,7 +140,7 @@ func (r *roundedrect) At(x, y int) color.Color {
 		c := circle{
 			image.Point{
 				r.pb.X - r.radius,
-				r.radius,
+				r.pa.Y + r.radius,
 			},
 			r.radius + 1,
 		}
@@ -154,7 +154,7 @@ func (r *roundedrect) At(x, y int) color.Color {
 		(y < r.pb.Y) {
 		c := circle{
 			image.Point{
-				r.radius,
+				r.pa.X + r.radius,
 				r.pb.Y - r.radius,
 			},
 			r.radius + 1,
