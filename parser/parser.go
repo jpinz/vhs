@@ -526,6 +526,24 @@ func (p *Parser) parseSet() Command {
 				NewError(p.cur, "expected boolean value."),
 			)
 		}
+	case token.SPEED_CURSOR:
+		cmd.Args = p.peek.Literal
+		p.nextToken()
+		if p.cur.Type != token.BOOLEAN {
+			p.errors = append(
+				p.errors,
+				NewError(p.cur, "expected boolean value for SpeedCursor."),
+			)
+		}
+	case token.SPEED_OVERLAY:
+		cmd.Args = p.peek.Literal
+		p.nextToken()
+		if !isValidSpeedOverlay(p.cur.Literal) {
+			p.errors = append(
+				p.errors,
+				NewError(p.cur, p.cur.Literal+" is not a valid overlay position. Valid positions: TopLeft, TopRight, BottomLeft, BottomRight"),
+			)
+		}
 
 	default:
 		cmd.Args = p.peek.Literal
@@ -819,4 +837,9 @@ func isValidWindowBar(w string) bool {
 	return w == "" ||
 		w == "Colorful" || w == "ColorfulRight" ||
 		w == "Rings" || w == "RingsRight"
+}
+
+// isValidSpeedOverlay checks if the value is a valid speed overlay position.
+func isValidSpeedOverlay(s string) bool {
+	return s == "TopLeft" || s == "TopRight" || s == "BottomLeft" || s == "BottomRight"
 }

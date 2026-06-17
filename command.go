@@ -580,6 +580,8 @@ var Settings = map[string]CommandFunc{
 	"WaitPattern":   ExecuteSetWaitPattern,
 	"WaitTimeout":   ExecuteSetWaitTimeout,
 	"CursorBlink":   ExecuteSetCursorBlink,
+	"SpeedCursor":   ExecuteSetSpeedCursor,
+	"SpeedOverlay":  ExecuteSetSpeedOverlay,
 }
 
 // ExecuteSet applies the settings on the running vhs specified by the
@@ -847,6 +849,22 @@ func ExecuteSetCursorBlink(c parser.Command, v *VHS) error {
 		return fmt.Errorf("failed to parse cursor blink: %w", err)
 	}
 
+	return nil
+}
+
+// ExecuteSetSpeedCursor sets whether the cursor displays the playback speed indicator.
+func ExecuteSetSpeedCursor(c parser.Command, v *VHS) error {
+	var err error
+	v.Options.SpeedCursor, err = strconv.ParseBool(c.Args)
+	if err != nil {
+		return fmt.Errorf("failed to parse speed cursor: %w", err)
+	}
+	return nil
+}
+
+// ExecuteSetSpeedOverlay sets the corner for the playback speed overlay.
+func ExecuteSetSpeedOverlay(c parser.Command, v *VHS) error {
+	v.Options.SpeedOverlay = c.Args
 	return nil
 }
 
