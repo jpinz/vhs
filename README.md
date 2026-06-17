@@ -228,6 +228,7 @@ There are a few basic types of VHS commands:
 - [`Left`](#arrow-keys) [`Right`](#arrow-keys) [`Up`](#arrow-keys) [`Down`](#arrow-keys): arrow keys
 - [`Backspace`](#backspace) [`Enter`](#enter) [`Tab`](#tab) [`Space`](#space): special keys
 - [`ScrollUp`](#scroll-up--down) [`ScrollDown`](#scroll-up--down): scroll terminal viewport
+- [`ScrollToBottom`](#scroll-to-bottom): scroll terminal viewport to the bottom
 - [`Ctrl[+Alt][+Shift]+<char>`](#ctrl): press control + key and/or modifier
 - [`Sleep <time>`](#sleep): wait for a certain amount of time
 - [`Wait[+Screen][+Line] /regex/`](#wait): wait for specific conditions
@@ -689,15 +690,33 @@ PageDown 5
 
 #### Scroll Up / Down
 
-Scroll the terminal viewport directly with `ScrollUp` and `ScrollDown`.
-Both commands use the same optional `@time` and repeat count shape as other
-repeatable key commands: `ScrollUp[@<time>] [count]`.
+Scroll the terminal viewport directly with `ScrollUp` and `ScrollDown`. These
+commands only move the viewport; they do not affect terminal output or where
+new output is written. Both commands use the same optional `@time` and repeat
+count shape as other repeatable key commands: `ScrollUp[@<time>] [count]`.
 
 ```elixir
 ScrollUp 10
 ScrollDown 4
 ScrollDown@100ms 12
 ```
+
+#### Scroll To Bottom
+
+Use `ScrollToBottom` to snap or smoothly scroll the viewport back to the
+bottom. `ScrollToBottom` or `ScrollToBottom snap` jumps immediately, while
+`ScrollToBottom@<time>` or `ScrollToBottom@<time> smooth` scrolls over the
+given duration.
+
+```elixir
+ScrollToBottom
+ScrollToBottom@500ms
+```
+
+`Show` does not scroll by itself; it just resumes capture from whatever
+viewport the terminal is currently showing. If you want to visibly reveal
+hidden output instead of resuming at the terminal's current position, start
+with `Hide+Scroll`, then use `Show` + `ScrollToBottom@<time> smooth`.
 
 ### Wait
 
@@ -738,10 +757,13 @@ Sleep 1s    # 1s
 ### Hide
 
 The `Hide` command instructs VHS to stop capturing frames. It's useful to pause
-a recording to perform hidden commands.
+a recording to perform hidden commands. Use `Hide+Scroll` when you want VHS to
+keep the viewport locked to the currently visible line while hidden output
+continues to be generated off-screen.
 
 ```elixir
 Hide
+Hide+Scroll
 ```
 
 This command is helpful for performing any setup and cleanup required to record
@@ -771,7 +793,11 @@ Enter
 ### Show
 
 The `Show` command instructs VHS to begin capturing frames, again. It's useful
-after a `Hide` command to resume frame recording for the output.
+after a `Hide` command to resume frame recording for the output. It also clears
+any viewport lock created by `Hide+Scroll` so capture resumes normally. `Show`
+does not perform any scrolling on its own; after a plain `Hide`, capture
+resumes from the terminal's current viewport, which may already be at the
+bottom if hidden commands produced more output.
 
 ```elixir
 Hide

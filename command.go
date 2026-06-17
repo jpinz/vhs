@@ -425,12 +425,15 @@ func ExecuteShift(c parser.Command, v *VHS) error {
 func ExecuteHide(c parser.Command, v *VHS) error {
 	if c.Args == "Scroll" {
 		_, err := v.Page.Eval(`() => {
-			const active = term.buffer.active;
-			window._vhsScrollOffset = active.baseY - active.viewportY;
+			if (window._vhsScrollLockInterval) {
+				clearInterval(window._vhsScrollLockInterval);
+			}
+			window._vhsLockedViewportY = term.buffer.active.viewportY;
 			window._vhsScrollLockInterval = setInterval(function() {
 				const a = term.buffer.active;
-				const targetY = a.baseY - window._vhsScrollOffset;
-				if (targetY >= 0 && a.viewportY !== targetY) {
+				const maxY = Math.max(0, a.length - term.rows);
+				const targetY = Math.min(window._vhsLockedViewportY, maxY);
+				if (a.viewportY !== targetY) {
 					term.scrollToLine(targetY);
 				}
 			}, 16);
